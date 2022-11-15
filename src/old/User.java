@@ -1,3 +1,4 @@
+package old;
 public class User {
     private final long userID;
     private final String firstname;
