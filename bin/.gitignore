@@ -11,3 +11,6 @@
 /User.class
 /UserManager.class
 /old/
+/DatabaseThread.class
+/DatabaseThread$Request.class
+/DatabaseThread$RequestType.class
