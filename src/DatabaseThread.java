@@ -16,12 +16,19 @@ public class DatabaseThread extends Thread {
 	}
 	
 	private enum RequestType {
+		//write
 		NEW_USER,
+		DELETE_USER,
 		TRANSFER,
 		CHANGE_USER_PASSWORD,
 		CHANGE_ACCOUNT_PASSWORD,
 		NEW_ACCOUNT,
-		REMOVE_ACCOUNT
+		REMOVE_ACCOUNT,
+		CONNECT_ACCOUNT,
+		//read
+		READ_ACCOUNTS,
+		READ_BALANCES,
+		READ_PASSWORD_SALT
 	}
 	
 	//byte[] to String: new String((byte[])data[n])
@@ -132,13 +139,6 @@ public class DatabaseThread extends Thread {
 		}
 	}
 	
-	/**
-	 * @param requestThread The thread that called the function, that that thread can request the userID of the newly created user and forward it to the user.
-	 * @param firstname
-	 * @param lastname
-	 * @param salt
-	 * @param password
-	 */
 	public void newUser(ClientConnection requestThread, String firstname, String lastname, byte[] salt, byte[] password) {
 		Object[] temp = new Object[5];
 		temp[0] = requestThread;
@@ -147,6 +147,13 @@ public class DatabaseThread extends Thread {
 		temp[3] = salt;
 		temp[4] = password;
 		requests.add(new Request(RequestType.NEW_USER, temp));
+	}
+	
+	public void deleteUser(ClientConnection requestThread, int userID) {
+		Object[] temp = new Object[2];
+		temp[0] = requestThread;
+		temp[1] = userID;
+		requests.add(new Request(RequestType.DELETE_USER, temp));
 	}
 	
 	public void transfer(ClientConnection requestThread, int ammount, int senderAccountID, int receiverAccountID) {
@@ -176,11 +183,6 @@ public class DatabaseThread extends Thread {
 		requests.add(new Request(RequestType.CHANGE_ACCOUNT_PASSWORD, temp));
 	}
 	
-	/**
-	 * @param userID
-	 * @param newAccountName
-	 * @param requestThread The thread that called the function, that that thread can request the userID of the newly created user and forward it to the user.
-	 */
 	public void newAccount(ClientConnection requestThread, int userID, byte[] salt, byte[] password, String newAccountName) {
 		Object[] temp = new Object[5];
 		temp[0] = requestThread;
@@ -198,6 +200,11 @@ public class DatabaseThread extends Thread {
 		requests.add(new Request(RequestType.REMOVE_ACCOUNT, temp));
 	}
 	
+	public void connectAccount(ClientConnection requestThread) {
+		Object[] temp = new Object[1];
+		temp[0] = requestThread;
+		requests.add(new Request(RequestType.CONNECT_ACCOUNT, temp));
+	}
 	
 	
 	private class Request {
