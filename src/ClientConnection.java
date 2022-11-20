@@ -4,8 +4,9 @@ import java.net.Socket;
 
 public class ClientConnection extends Thread {
 	
-	Socket client;
-	OutputStreamWriter out;
+	private Socket client;
+	private OutputStreamWriter out;
+	private int userID;
 	
 	public ClientConnection(Socket client) {
 		try {
@@ -16,11 +17,19 @@ public class ClientConnection extends Thread {
 		}
 	}
 	
+	public void setUserID(int userID) {
+		this.userID = userID;
+	}
+	
+	public int getUserID() {
+		return userID;
+	}
+	
 	public OutputStreamWriter getOutput() {
 		return out;
 	}
 	
-	public String ipAdress() {
+	public String getIPAdress() {
 		return client.getInetAddress().getHostAddress();
 	}
 	
