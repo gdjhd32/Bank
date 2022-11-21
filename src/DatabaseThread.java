@@ -48,7 +48,7 @@ public class DatabaseThread extends Thread {
 	
 	public DatabaseThread() {
 		database = new DatabaseConnector("", 0, "Bank.db", "", "");
-		
+
 		LinkedList<Request> list = new LinkedList<Request>();
 		requests = Collections.synchronizedList(list);
 	}
@@ -71,7 +71,9 @@ public class DatabaseThread extends Thread {
 				case NEW_USER -> {
 					//execution
 					startMessage = "The creation of a new user was unsuccessful, because ";
-					executeStatement("INSERT INTO User (firstname, lastname, salt, password) VALUES (" + data[0] + "," + data[1] + "," + new String((byte[]) data[2]) + new String((byte[]) data[3]) + ");");
+					byte[] salt = PasswordValidator.generateSalt();
+					byte[] password = PasswordValidator.generateHash((String) data[2], salt);
+					executeStatement("INSERT INTO User (firstname, lastname, salt, password) VALUES (" + data[0] + "," + data[1] + "," + salt + password + ");");
 					if(database.getErrorMessage() != null) 
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
 					executeStatement("SELECT MAX(userID) FROM User;");
@@ -104,7 +106,9 @@ public class DatabaseThread extends Thread {
 					}
 					
 					//execution
-					executeStatement("INSERT INTO Account (balance, salt, password, accountName) VALUES (0, " + new String((byte[]) data[1]) + ", " + new String((byte[]) data[2]) + ", " + data[3] + ");");
+					byte[] salt = PasswordValidator.generateSalt();
+					byte[] password = PasswordValidator.generateHash((String) data[1], salt);
+					executeStatement("INSERT INTO Account (balance, salt, password, accountName) VALUES (0, " + salt + ", " + password + ", " + data[2] + ");");
 					if(database.getErrorMessage() != null) {
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
 						break;
@@ -261,13 +265,12 @@ public class DatabaseThread extends Thread {
 		}
 	}
 
-	public void newUser(ClientConnection requestThread, String firstname, String lastname, byte[] salt, byte[] password) {
-		Object[] temp = new Object[5];
+	public void newUser(ClientConnection requestThread, String firstname, String lastname, String password) {
+		Object[] temp = new Object[4];
 		temp[0] = requestThread;
 		temp[1] = firstname;
 		temp[2] = lastname;
-		temp[3] = salt;
-		temp[4] = password;
+		temp[3] = password;
 		requests.add(new Request(RequestType.NEW_USER, temp));
 	}
 	
@@ -305,13 +308,12 @@ public class DatabaseThread extends Thread {
 //		requests.add(new Request(RequestType.CHANGE_ACCOUNT_PASSWORD, temp));
 //	}
 	
-	public void newAccount(ClientConnection requestThread, byte[] salt, byte[] password, String newAccountName) {
-		Object[] temp = new Object[5];
+	public void newAccount(ClientConnection requestThread, String password, String newAccountName) {
+		Object[] temp = new Object[4];
 		temp[0] = requestThread;
 		temp[1] = requestThread.getUserID();
-		temp[2] = salt;
-		temp[3] = password;
-		temp[4] = newAccountName;
+		temp[2] = password;
+		temp[3] = newAccountName;
 		requests.add(new Request(RequestType.NEW_ACCOUNT, temp));
 	}
 	
