@@ -33,4 +33,8 @@ public class ClientConnection extends Thread {
 		return client.getInetAddress().getHostAddress();
 	}
 	
+	public void confirmLogin(boolean confirmation) {
+		//TODO implement login
+	}
+	
 }
