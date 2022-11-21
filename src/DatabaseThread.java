@@ -21,22 +21,29 @@ public class DatabaseThread extends Thread {
 		DELETE_USER,
 		TRANSFER,
 		CHANGE_USER_PASSWORD,
-		CHANGE_ACCOUNT_PASSWORD,
+//		CHANGE_ACCOUNT_PASSWORD,
 		NEW_ACCOUNT,
 		REMOVE_ACCOUNT,
 		CONNECT_ACCOUNT,
 		//read
-		READ_ACCOUNTS,
-		READ_BALANCES,
-		CONFIRM_LOGIN
+		READ_ACCOUNTS
 	}
 	
-	//byte[] to String: new String((byte[])data[n])
+	/*
+	 * if(input.equals("connect account") {
+	 * 	databaseThread.getAccountSaltPassword
+	 * 	if(passwordCorrect)
+	 * 		databaseThread.connectAccount
+	 *} 
+	 * 
+	 */
+	
+	//byte[] to String -> { new String((byte[])data[n])
 	
 	DatabaseConnector database;
 	List<Request> requests;
 	OutputStreamWriter out; //current output
-	String ipClient;	//current ip adress of the 
+	String ipClient;	//current ip address of the 
 	ClientConnection client;
 	
 	public DatabaseThread() {
@@ -49,29 +56,31 @@ public class DatabaseThread extends Thread {
 	@Override
 	public void run() {
 		while(true) {
+			while(requests.isEmpty()) {
+				Thread.onSpinWait();
+			}
 			//pick first request in the queue
-			Request currentRequest = requests.get(0);
-			requests.remove(0);
+			Request currentRequest = requests.remove(0);
 			//extracting the ClientConnection from the start of data[]
 			Object[] data = currentRequest.getArray();
 			client = (ClientConnection) data[0];
-			data = Arrays.copyOfRange(data, 1, data.length + 1);
+			data = Arrays.copyOfRange(data, 1, data.length);
 			
 			String startMessage = "";
 			switch(currentRequest.getType()) {
-				case NEW_USER:
+				case NEW_USER -> {
 					//execution
 					startMessage = "The creation of a new user was unsuccessful, because ";
 					executeStatement("INSERT INTO User (firstname, lastname, salt, password) VALUES (" + data[0] + "," + data[1] + "," + new String((byte[]) data[2]) + new String((byte[]) data[3]) + ");");
-					if(database.getErrorMessage() == null) 
+					if(database.getErrorMessage() != null) 
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
 					executeStatement("SELECT MAX(userID) FROM User;");
-					if(database.getErrorMessage() == null) 
+					if(database.getErrorMessage() != null) 
 						write(startMessage + "there was a error while reading the ID of the new user. Please immediatly report this to an admin.", database.getErrorMessage());
 					else
 						write("Your userID is " + database.getCurrentQueryResult().getData()[0][0] + ". Please remember this number and your password, since your account will be unaccessible for anyone but the admins when you forget it. You are now logged in and can create an account to start you banking journey.");
-					break;
-				case DELETE_USER:
+				}
+				case DELETE_USER -> {
 					//validation
 					startMessage = "The deletion of the user " + data[0] + "was unsuccessful, because ";
 					if(!iDExists("User", (int) data[0])) {
@@ -85,8 +94,8 @@ public class DatabaseThread extends Thread {
 					executeStatement("DELETE FROM in_charge_of WHERE userID = " + data[0]);
 					if(database.getErrorMessage() != null) 
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
-					break;
-				case NEW_ACCOUNT:
+				}
+				case NEW_ACCOUNT -> {
 					//validation
 					startMessage = "The creation of a new account was unsuccessful, because ";
 					if(!iDExists("User", (int) data[0])) {
@@ -112,8 +121,8 @@ public class DatabaseThread extends Thread {
 						break;
 					}
 					write("The creation of the new account with the accountID " + accountID + "was successful.");
-					break;
-				case TRANSFER:
+				}
+				case TRANSFER -> {
 					try {
 						//validating transfer
 						executeStatement("SELECT accountID FROM Account WHERE accountID = " + data[1] + " OR " + data[2] + ";");
@@ -152,8 +161,8 @@ public class DatabaseThread extends Thread {
 						System.out.println("Failed to read the balances while transferring money."); 
 						e.printStackTrace();
 					}
-					break;
-				case CHANGE_USER_PASSWORD:
+				}
+				case CHANGE_USER_PASSWORD -> {
 					startMessage = "The change of the password of the user " + data[0] + " was unsuccessful, because ";
 					//validation
 					if(!iDExists("User", (int) data[0])) {
@@ -166,22 +175,22 @@ public class DatabaseThread extends Thread {
 						write("The password of the user " + data[0] + " was successfully changed.");
 					else
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
-					break;
-				case CHANGE_ACCOUNT_PASSWORD:
-					startMessage = "The change of the password of the account " + data[0] + " was unsuccessful, because ";
-					//validation
-					if(!iDExists("Account", (int) data[0])) {
-						write(startMessage + "the account doesn't exist.");
-						break;
-					}
-					//execution
-					executeStatement("UPDATE Account SET salt = " + new String((byte[])data[1]) + ", password = " + new String((byte[])data[2]) + " WHERE accountID = " + data[0] + ";");
-					if(database.getErrorMessage() != null)
-						write("The password of the account " + data[0] + " was successfully changed.");
-					else
-						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
-					break;
-				case REMOVE_ACCOUNT:
+				}
+//				case CHANGE_ACCOUNT_PASSWORD -> {
+//					startMessage = "The change of the password of the account " + data[0] + " was unsuccessful, because ";
+//					//validation
+//					if(!iDExists("Account", (int) data[0])) {
+//						write(startMessage + "the account doesn't exist.");
+//						break;
+//					}
+//					//execution
+//					executeStatement("UPDATE Account SET salt = " + new String((byte[])data[1]) + ", password = " + new String((byte[])data[2]) + " WHERE accountID = " + data[0] + ";");
+//					if(database.getErrorMessage() != null)
+//						write("The password of the account " + data[0] + " was successfully changed.");
+//					else
+//						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
+//					}
+				case REMOVE_ACCOUNT -> {
 					//validation
 					startMessage = "The removal of the account " + data[0] + "was unsuccessful, because ";
 					if(!iDExists("Account", (int) data[0])) {
@@ -190,25 +199,68 @@ public class DatabaseThread extends Thread {
 					}
 					//execution
 					executeStatement("DELETE FROM in_charge_of WHERE accountID = " + data[0] + " AND userID = " + data[1] + ";");
-					if(database.getErrorMessage() != null) 
+					if(database.getErrorMessage() != null) {
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
+						break;
+					}
 					executeStatement("SELECT * FROM in_charge_of WHERE accountID = " + data[0]);
-					if(database.getErrorMessage() != null) 
+					if(database.getErrorMessage() != null) {
 						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
+						break;
+					}
 					if(database.getCurrentQueryResult().getData().length == 0) {
 						executeStatement("DELETE FROM Account WHERE accountID = " + data[0] + ";");
 						if(database.getErrorMessage() != null) 
 							write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
+							break;
 					}
-					break;
-				case CONNECT_ACCOUNT:
+				}
+				case CONNECT_ACCOUNT -> {
 					//validation 
+					startMessage = "The connection of the user " + data[1] + " to the account " + data[0] + "was unsuccessful, because ";
+					if(!iDExists("Account", (int) data[0])) {
+						write(startMessage + "the account doesn't exist.");
+						break;
+					}
 					
-					break;
+				}
+				case READ_ACCOUNTS -> {
+					//validation 
+					startMessage = "The reading of the accounts of the user " + data[0] + " was unsuccessful, because ";
+					if(iDExists("User", (int) data[0])) {
+						write(startMessage + "the user doesn't exist.");
+						break;
+					}
+					//execution 
+					executeStatement("SELECT Account.accountName, in_charge_of.accountID, Account.balance FROM in_charge_of INNER JOIN Account ON in_charge_of.accountID = Account.accountID WHERE in_charge_of.accountID = " + data[0] + " ORDER BY in_charge_of.accountID ASC;");
+					if(database.getErrorMessage() != null) {
+						write(startMessage + "there was a error while accessing the database.", database.getErrorMessage());
+						break;
+					}
+					String message = "AccountID AccountName balance/n";
+					String[][] result = database.getCurrentQueryResult().getData();
+					for(int i = 0; i < result.length; i++) {
+						for(int o = 0; o < result[i].length; o++) {
+							message = message + result[i][o] + " ";
+						}
+						message = message + "/n";
+					}
+					try {
+						int number = 0;
+						for(int i = 0; i < result[0].length; i++) {
+							number = number + Integer.parseInt(result[i][2]);
+						}
+						message = message + "Total: " + number;
+					} catch(NumberFormatException e) {
+						e.printStackTrace();
+						System.out.println("Something went terribly wrong. Good luck catching that.");
+					}
+					write(message);
+				}
 			}
 		}
 	}
-	
+
 	public void newUser(ClientConnection requestThread, String firstname, String lastname, byte[] salt, byte[] password) {
 		Object[] temp = new Object[5];
 		temp[0] = requestThread;
@@ -244,14 +296,14 @@ public class DatabaseThread extends Thread {
 		requests.add(new Request(RequestType.CHANGE_USER_PASSWORD, temp));
 	}
 	
-	public void changeAccountPassword(ClientConnection requestThread, int accountID, byte[] salt, byte[] password) {
-		Object[] temp = new Object[4];
-		temp[0] = requestThread;
-		temp[1] = accountID;
-		temp[2] = salt;
-		temp[3] = password;
-		requests.add(new Request(RequestType.CHANGE_ACCOUNT_PASSWORD, temp));
-	}
+//	public void changeAccountPassword(ClientConnection requestThread, int accountID, byte[] salt, byte[] password) {
+//		Object[] temp = new Object[4];
+//		temp[0] = requestThread;
+//		temp[1] = accountID;
+//		temp[2] = salt;
+//		temp[3] = password;
+//		requests.add(new Request(RequestType.CHANGE_ACCOUNT_PASSWORD, temp));
+//	}
 	
 	public void newAccount(ClientConnection requestThread, byte[] salt, byte[] password, String newAccountName) {
 		Object[] temp = new Object[5];
@@ -280,8 +332,15 @@ public class DatabaseThread extends Thread {
 		requests.add(new Request(RequestType.CONNECT_ACCOUNT, temp));
 	}
 	
+	public void readAccounts(ClientConnection requestThread) {
+		Object[] temp = new Object[2];
+		temp[0] = requestThread;
+		temp[1] = requestThread.getUserID();
+		requests.add(new Request(RequestType.READ_ACCOUNTS, temp));
+	}
 	
-	private class Request {
+	
+	private static class Request {
 		
 		private RequestType type;
 		private Object[] array;
@@ -342,14 +401,14 @@ public class DatabaseThread extends Thread {
 //	}
 	
 	private void log(ClientConnection client, String message) {
-		executeStatement("INSERT INTO Log (date, time, ipClient, message) VALUES (" + LocalDate.now() + ", " + LocalTime.now() + ", " + client.getIPAdress() + ", " +  message + ");");
+		executeStatement("INSERT INTO Log (date, time, ipClient, message) VALUES (" + LocalDate.now() + ", " + LocalTime.now() + ", " + client.getIPAddress() + ", " +  message + ");");
 		if(database.getErrorMessage() != null) {
 			System.out.println(database.getErrorMessage());
 		}
 	}
 	
 	private void log(ClientConnection client, String message, String sqlError) {
-		executeStatement("INSERT INTO Log (date, time, ipClient, message, sqlError) VALUES (" + LocalDate.now() + ", " + LocalTime.now() + ", " + client.getIPAdress() + ", " +  message + ", " + sqlError + ");");
+		executeStatement("INSERT INTO Log (date, time, ipClient, message, sqlError) VALUES (" + LocalDate.now() + ", " + LocalTime.now() + ", " + client.getIPAddress() + ", " +  message + ", " + sqlError + ");");
 		if(database.getErrorMessage() != null) {
 			System.out.println(database.getErrorMessage());
 		}

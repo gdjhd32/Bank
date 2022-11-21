@@ -29,12 +29,8 @@ public class ClientConnection extends Thread {
 		return out;
 	}
 	
-	public String getIPAdress() {
+	public String getIPAddress() {
 		return client.getInetAddress().getHostAddress();
-	}
-	
-	public void confirmLogin(boolean confirmation) {
-		//TODO implement login
 	}
 	
 }
