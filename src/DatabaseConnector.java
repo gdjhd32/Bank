@@ -1,152 +1,130 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
+public class ClientConnection extends Thread {
 
+    private final Socket client;
+    private final DatabaseThread dbt;
+    private PrintWriter writer;
+    private BufferedReader reader;
+    private int userID;
 
-
-import java.sql.*;
-
-/**
- * <p>
- * Materialien zu den zentralen NRW-Abiturpruefungen im Fach Informatik ab 2018
- * </p>
- * <p>
- * Klasse DatabaseConnector
- * </p>
- * <p>
- * Ein Objekt der Klasse DatabaseConnector ermoeglicht die Abfrage und Manipulation 
- * einer SQLite-Datenbank. 
- * Beim Erzeugen des Objekts wird eine Datenbankverbindung aufgebaut, so dass 
- * anschließend SQL-Anweisungen an diese Datenbank gerichtet werden koennen.
- * </p>
- * 
- * @author Qualitaets- und UnterstuetzungsAgentur - Landesinstitut fuer Schule
- * @version 2016-01-24
- */
-public class DatabaseConnector{
-  private Connection connection;  
-  private QueryResult currentQueryResult = null;
-  private String message = null;
-
-  /**
-   * Ein Objekt vom Typ DatabaseConnector wird erstellt, und eine Verbindung zur Datenbank 
-   * wird aufgebaut. Mit den Parametern pIP und pPort werden die IP-Adresse und die 
-   * Port-Nummer uebergeben, unter denen die Datenbank mit Namen pDatabase zu erreichen ist. 
-   * Mit den Parametern pUsername und pPassword werden Benutzername und Passwort fuer die 
-   * Datenbank uebergeben.
-   */
-  public DatabaseConnector(String pIP, int pPort, String pDatabase, String pUsername, String pPassword){
-    //Eine Impementierung dieser Schnittstelle fuer SQLite ignoriert pID und pPort, da die Datenbank immer lokal ist. 
-    //Auch pUsername und pPassword werden nicht verwendet, da SQLite sie nicht unterstuetzt.
-    try {
-      //Laden der Treiberklasse
-      Class.forName("org.sqlite.JDBC");
-
-      //Verbindung herstellen
-      connection = DriverManager.getConnection("jdbc:sqlite:"+pDatabase);
-
-    } catch (Exception e) {
-      message = e.getMessage();
-    }
-  }
-
-  /**
-   * Der Auftrag schickt den im Parameter pSQLStatement enthaltenen SQL-Befehl an die 
-   * Datenbank ab. 
-   * Handelt es sich bei pSQLStatement um einen SQL-Befehl, der eine Ergebnismenge 
-   * liefert, so kann dieses Ergebnis anschließend mit der Methode getCurrentQueryResult 
-   * abgerufen werden.
-   */
-  public void executeStatement(String pSQLStatement){  
-    //Altes Ergebnis loeschen
-    currentQueryResult = null;
-    message = null;
-
-    try {
-      //Neues Statement erstellen
-      Statement statement = connection.createStatement();
-
-      //SQL Anweisung an die DB schicken.
-      if (statement.execute(pSQLStatement)) { //Fall 1: Es gibt ein Ergebnis
-
-        //Resultset auslesen
-        ResultSet resultset = statement.getResultSet();
-
-        //Spaltenanzahl ermitteln
-        int columnCount = resultset.getMetaData().getColumnCount();
-        
-        //Spaltennamen und Spaltentypen in Felder uebertragen
-        String[] resultColumnNames = new String[columnCount];
-        String[] resultColumnTypes = new String[columnCount];
-        for (int i = 0; i < columnCount; i++){
-          resultColumnNames[i] = resultset.getMetaData().getColumnLabel(i+1);
-          resultColumnTypes[i] = resultset.getMetaData().getColumnTypeName(i+1);
+    public ClientConnection(Socket client, DatabaseThread dbt) {
+        this.client = client;
+        this.dbt = dbt;
+        try {
+            writer = new PrintWriter(client.getOutputStream(), true);
+            reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
-        //Queue fuer die Zeilen der Ergebnistabelle erstellen
-        Queue<String[]> rows = new Queue<String[]>();
-
-        //Daten in Queue uebertragen und Zeilen zaehlen
-        int rowCount = 0;
-        while (resultset.next()){
-          String[] resultrow =  new String[columnCount];
-          for (int s = 0; s < columnCount; s++){
-            resultrow[s] = resultset.getString(s+1);
-          }
-          rows.enqueue(resultrow);
-          rowCount = rowCount + 1;
-        }
-
-        //Ergebnisfeld erstellen und Zeilen aus Queue uebertragen
-        String[][] resultData = new String[rowCount][columnCount];
-        int j = 0;
-        while (!rows.isEmpty()){
-          resultData[j] = rows.front();
-          rows.dequeue();          
-          j = j + 1;
-        }
-               
-        //Statement schließen und Ergebnisobjekt erstellen
-        statement.close();
-        currentQueryResult =  new QueryResult(resultData, resultColumnNames, resultColumnTypes); 
-
-      } else { //Fall 2: Es gibt kein Ergebnis.
-        //Statement ohne Ergebnisobjekt schliessen
-        statement.close();       
-      }
-
-    } catch (Exception e) {
-      //Fehlermeldung speichern
-      message = e.getMessage();
     }
-  }
 
-  /**
-   * Die Anfrage liefert das Ergebnis des letzten mit der Methode executeStatement an 
-   * die Datenbank geschickten SQL-Befehls als Ob-jekt vom Typ QueryResult zurueck.
-   * Wurde bisher kein SQL-Befehl abgeschickt oder ergab der letzte Aufruf von 
-   * executeStatement keine Ergebnismenge (z.B. bei einem INSERT-Befehl oder einem 
-   * Syntaxfehler), so wird null geliefert.  
-   */  
-  public QueryResult getCurrentQueryResult(){
-    return currentQueryResult;
-  }
-
-  /**
-   * Die Anfrage liefert null oder eine Fehlermeldung, die sich jeweils auf die letzte zuvor ausgefuehrte 
-   * Datenbankoperation bezieht.
-   */
-  public String getErrorMessage(){
-    return message;
-  }
-
-  /**
-   * Die Datenbankverbindung wird geschlossen.
-   */
-  public void close(){
-    try{
-      connection.close();
-    } catch (Exception e) {
-      message = e.getMessage();
+    public int getUserID() {
+        return userID;
     }
-  }
 
+    public void setUserID(int userID) {
+        this.userID = userID;
+    }
+
+    public PrintWriter getOutput() {
+        return writer;
+    }
+
+    public String getIPAddress() {
+        return client.getInetAddress().getHostAddress();
+    }
+
+    @Override
+    public void run() {
+        boolean running = true;
+
+        try (client) {
+            while (running) {
+                String message;
+                try {
+                    message = reader.readLine();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    running = false;
+                    continue;
+                }
+
+                Iterator<String> args = Arrays.stream(message.split(" ")).iterator();
+                String prefix = args.next();
+
+                try {
+                    switch (prefix) {
+                        case "register" -> {
+                            String firstname = args.next();
+                            String lastname = args.next();
+                            String password = args.next();
+
+                            dbt.newUser(this, firstname, lastname, password);
+                        }
+                        case "login" -> {
+                            int userID;
+                            try {
+                                userID = Integer.parseUnsignedInt(args.next());
+                            } catch (NumberFormatException e) {
+                                writer.println("Expected numerical argument.");
+                                continue;
+                            }
+                            String password = args.next();
+
+                            PasswordValidator.generateHash(password, dbt.getUserSalt(userID));
+                            byte[][] saltAndPassword = dbt.getSaltAndHash(userID);
+                            boolean valid = PasswordValidator.isValid(password, saltAndPassword[0], saltAndPassword[1]);
+
+                            if (valid) {
+                                this.userID = userID;
+                                writer.println("You are now logged in.");
+                            } else {
+                                writer.println("Wrong password.");
+                            }
+                            // TODO: DatabaseThread must implement a method to retrieve the userID, together with the password hash + salt.
+                        }
+                        case "transfer" -> {
+                            int amount, senderAccountID, receiverAccountID;
+                            try {
+                                amount = Integer.parseUnsignedInt(args.next());
+                                senderAccountID = Integer.parseUnsignedInt(args.next());
+                                receiverAccountID = Integer.parseUnsignedInt(args.next());
+                            } catch (NumberFormatException e) {
+                                writer.println("Expected numerical argument.");
+                                continue;
+                            }
+                            dbt.readAccounts(this);
+                            dbt.transfer(this, amount, senderAccountID, receiverAccountID);
+                        }
+                        case "change" -> {
+                            String password = args.next();
+                            byte[] salt = PasswordValidator.generateSalt();
+
+                            dbt.changeUserPassword(this, salt, PasswordValidator.generateHash(password, salt));
+                        }
+                        case "delete" -> {
+                            dbt.deleteUser(this);
+                        }
+                        case "quit" -> {
+                            running = false;
+                            writer.println("Bye.");
+                        }
+
+                    }
+                } catch (NoSuchElementException e) {
+                    writer.println("Not enough arguments given.");
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
