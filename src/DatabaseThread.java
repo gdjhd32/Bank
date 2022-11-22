@@ -42,7 +42,7 @@ public class DatabaseThread extends Thread {
 	
 	DatabaseConnector database;
 	List<Request> requests;
-	OutputStreamWriter out; //current output
+	PrintWriter out; //current output
 	String ipClient;	//current ip address of the 
 	ClientConnection client;
 	
@@ -374,7 +374,7 @@ public class DatabaseThread extends Thread {
 	
 	public void write(ClientConnection client, String message) {
 		try {
-			OutputStreamWriter output = client.getOutput();
+			PrintWriter output = client.getOutput();
 			output.write(message);
 			output.flush();
 			log(client, message);
@@ -385,7 +385,7 @@ public class DatabaseThread extends Thread {
 	
 	private void write(String message, String sqlError) {
 		try {
-			OutputStreamWriter output = client.getOutput();
+			PrintWriter output = client.getOutput();
 			output.write(message);
 			output.flush();
 			log(client, message, sqlError);
