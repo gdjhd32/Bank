@@ -364,7 +364,7 @@ public class DatabaseThread extends Thread {
 	
 	private void write(String message) {
 		try {
-			out.write(message);
+			out.write(message + "/n");
 			out.flush();
 			log(client, message);
 		} catch(IOException e) {
@@ -375,7 +375,7 @@ public class DatabaseThread extends Thread {
 	public void write(ClientConnection client, String message) {
 		try {
 			PrintWriter output = client.getOutput();
-			output.write(message);
+			output.write(message + "/n");
 			output.flush();
 			log(client, message);
 		} catch(IOException e) {
@@ -386,7 +386,7 @@ public class DatabaseThread extends Thread {
 	private void write(String message, String sqlError) {
 		try {
 			PrintWriter output = client.getOutput();
-			output.write(message);
+			output.write(message + "/n");
 			output.flush();
 			log(client, message, sqlError);
 		} catch(IOException e) {
